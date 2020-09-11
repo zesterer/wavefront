@@ -1,0 +1,18 @@
+[package]
+name = "wavefront"
+version = "0.1.0"
+description = "A Wavefront OBJ parser and utility crate"
+authors = ["Joshua Barretto <joshua.s.barretto@gmail.com>"]
+license = "Apache-2.0 AND MIT"
+repository = "https://github.com/zesterer/wavefront"
+readme = "README.md"
+edition = "2018"
+keywords = ["obj", "wavefront", "parser", "model"]
+exclude = [
+	"/misc",
+	"/misc/*",
+]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
