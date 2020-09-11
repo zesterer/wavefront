@@ -34,6 +34,7 @@ use std::{
     fs::File,
     collections::HashMap,
     num::NonZeroUsize,
+    error,
     fmt,
 };
 
@@ -59,6 +60,8 @@ impl From<io::Error> for Error {
         Error::Io(e)
     }
 }
+
+impl error::Error for Error {}
 
 /// A struct representing the contents of a parsed OBJ file.
 #[derive(Clone)]
