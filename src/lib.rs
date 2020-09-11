@@ -31,7 +31,7 @@
 //!
 //! - Support for arbitrary geometry.
 
-#![feature(iter_map_while, option_zip)]
+#![feature(iter_map_while)]
 
 use std::{
     io::{self, Read},
@@ -93,8 +93,15 @@ impl Obj {
         Self::from_reader(io::BufReader::new(File::open(path)?))
     }
 
-    /// Read an OBJ file from a reader (something implementing [`std::io::Read`]).
+    /// Read an OBJ from a reader (something implementing [`std::io::Read`]).
     pub fn from_reader<R: Read>(mut reader: R) -> Result<Self, Error> {
+        let mut buf = String::new();
+        reader.read_to_string(&mut buf)?;
+        Self::from_lines(buf.lines())
+    }
+
+    /// Read an OBJ from an iterator over its lines.
+    pub fn from_lines<I: Iterator<Item=L>, L: AsRef<str>>(lines: I) -> Result<Self, Error> {
         let mut positions = Vec::new();
         let mut uvs = Vec::new();
         let mut normals = Vec::new();
@@ -107,10 +114,8 @@ impl Obj {
         let mut groups = HashMap::<_, Vec<VertexRange>>::new();
         let mut selected_groups = Vec::new();
 
-        let mut buf = String::new();
-        reader.read_to_string(&mut buf)?;
-
-        for (i, line) in buf.lines().enumerate() {
+        for (i, line) in lines.enumerate() {
+            let line = line.as_ref();
             let line_num = i + 1;
             let mut terms = line.split_ascii_whitespace();
             match terms.next() {
