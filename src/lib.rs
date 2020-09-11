@@ -15,26 +15,11 @@
 //! ```
 //!
 //! <center><img src="https://raw.githubusercontent.com/zesterer/wavefront/master/misc/screenshot.png" alt="A parsec isn't a unit of time, Han" width="50%"/></center>
-//!
-//! # Features
-//!
-//! - Ergonomic API for parsing OBJs from files and [`std::io::Read`]ers.
-//!
-//! - Wrapper types that automatically perform indexing and hide the annoyances of the OBJ format if you just want to
-//!   grab some triangles.
-//!
-//! - Correct handling of complex polygons.
-//!
-//! # Roadmap
-//!
-//! - Support for materials and the MTL format.
-//!
-//! - Support for arbitrary geometry.
 
 #![feature(iter_map_while)]
 
 use std::{
-    io::{self, Read},
+    io::{self, Read, Write},
     path::Path,
     fs::File,
     collections::HashMap,
@@ -257,6 +242,16 @@ impl Obj {
         })
     }
 
+    /// Write this [`Obj`] to a writer (something implementing [`std::io::Write`]) in OBJ format.
+    pub fn write<W: Write>(&self, mut writer: W) -> Result<(), Error> {
+        Ok(write!(writer, "{}", self)?)
+    }
+
+    /// Write this [`Obj`] to a file in OBJ format.
+    pub fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
+        Ok(self.write(File::create(path)?)?)
+    }
+
     /// Returns a reference to the position attributes contained within this [`Obj`].
     pub fn positions(&self) -> &[[f32; 3]] {
         &self.buffers.positions
@@ -319,14 +314,26 @@ impl Obj {
 
 impl fmt::Debug for Obj {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Obj")
+            .field("positions", &self.buffers.positions.len())
+            .field("uvs", &self.buffers.uvs.len())
+            .field("normals", &self.buffers.normals.len())
+            .field("vertices", &self.buffers.vertices.len())
+            .field("objects", &self.objects().collect::<Vec<_>>())
+            .finish()
+    }
+}
+
+impl fmt::Display for Obj {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for [x, y, z] in &self.buffers.positions {
-            writeln!(f, "v {:?} {:?} {:?}", x, y, z)?;
+            writeln!(f, "v {} {} {}", x, y, z)?;
         }
         for [u, v, w] in &self.buffers.uvs {
-            writeln!(f, "vt {:?} {:?} {:?}", u, v, w)?;
+            writeln!(f, "vt {} {} {}", u, v, w)?;
         }
         for [x, y, z] in &self.buffers.normals {
-            writeln!(f, "vn {:?} {:?} {:?}", x, y, z)?;
+            writeln!(f, "vn {} {} {}", x, y, z)?;
         }
         for (name, groups) in self.objects.iter() {
             if name.len() > 0 {
@@ -337,7 +344,8 @@ impl fmt::Debug for Obj {
                     writeln!(f, "g {}", name)?;
                 }
                 for range in polys {
-                    writeln!(f, "{:?}", self.buffers.lookup(*range))?;
+                    self.buffers.lookup(*range).display(f)?;
+                    writeln!(f)?;
                 }
             }
         }
@@ -391,6 +399,14 @@ impl<'a> Object<'a> {
     }
 }
 
+impl<'a> fmt::Debug for Object<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Object")
+            .field("groups", &self.groups().collect::<Vec<_>>())
+            .finish()
+    }
+}
+
 /// A group defined in an OBJ.
 #[derive(Copy, Clone)]
 pub struct Group<'a> {
@@ -418,6 +434,14 @@ impl<'a> Group<'a> {
             .polygons()
             .map(|poly| poly.triangles())
             .flatten()
+    }
+}
+
+impl<'a> fmt::Debug for Group<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Group")
+            .field("polygons", &self.polygons().collect::<Vec<_>>())
+            .finish()
     }
 }
 
@@ -468,15 +492,22 @@ impl<'a> Polygon<'a> {
                 this.vertex(i * 2 + 2).unwrap(),
             ])
     }
+
+    fn display(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "f")?;
+        for v in self.vertices() {
+            write!(f, " ")?;
+            v.display(f)?;
+        }
+        Ok(())
+    }
 }
 
 impl<'a> fmt::Debug for Polygon<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "f")?;
-        for v in self.vertices() {
-            write!(f, " {:?}", v)?;
-        }
-        Ok(())
+        f.debug_struct("Polygon")
+            .field("vertices", &self.vertices().collect::<Vec<_>>())
+            .finish()
     }
 }
 
@@ -523,15 +554,23 @@ impl<'a> Vertex<'a> {
     pub fn normal(&self) -> Option<[f32; 3]> {
         Some(self.buffers.normals[self.normal_index()?])
     }
+
+    fn display(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, " {}/", self.indices.0)?;
+        if let Some(uv) = self.indices.1 { write!(f, "{}", uv)?; }
+        write!(f, "/")?;
+        if let Some(norm) = self.indices.2 { write!(f, "{}", norm)?; }
+        Ok(())
+    }
 }
 
 impl<'a> fmt::Debug for Vertex<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, " {:?}/", self.indices.0)?;
-        if let Some(uv) = self.indices.1 { write!(f, "{:?}", uv)?; }
-        write!(f, "/")?;
-        if let Some(norm) = self.indices.2 { write!(f, "{:?}", norm)?; }
-        Ok(())
+        f.debug_struct("Vertex")
+            .field("position", &self.position())
+            .field("uv", &self.uv())
+            .field("normal", &self.normal())
+            .finish()
     }
 }
 
@@ -562,7 +601,7 @@ impl Buffers {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 struct VertexRange {
     start: usize,
     end: usize,

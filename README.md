@@ -35,9 +35,13 @@ for [a, b, c] in model.triangles() {
 
 ## Roadmap
 
-- Support for materials and the MTL format.
+- Materials and the MTL support.
 
-- Support for arbitrary geometry.
+- Object, group, polygon, vertex and vertex attribute insertion
+
+- Saving
+
+- Arbitrary geometry support.
 
 ## Why not [alternative]?
 
