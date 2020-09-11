@@ -14,7 +14,7 @@
 //! }
 //! ```
 //!
-//! <img src="https://raw.githubusercontent.com/zesterer/wavefront/master/misc/screenshot.png" alt="A parsec isn't a unit of time, Han" width="50%"/>
+//! <center><img src="https://raw.githubusercontent.com/zesterer/wavefront/master/misc/screenshot.png" alt="A parsec isn't a unit of time, Han" width="50%"/></center>
 //!
 //! # Features
 //!
