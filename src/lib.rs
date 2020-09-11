@@ -7,6 +7,11 @@
 //!
 //! ```
 //! let model = wavefront::Obj::from_file("tests/ship.obj").unwrap();
+//!
+//! for [a, b, c] in model.triangles() {
+//!     // No index lookup required: wavefront handles this for you!
+//!     println!("{:?} {:?} {:?}", a.position(), b.position(), c.position());
+//! }
 //! ```
 //!
 //! <img src="https://raw.githubusercontent.com/zesterer/wavefront/master/misc/screenshot.png" alt="A parsec isn't a unit of time, Han" width="50%"/>
@@ -58,6 +63,18 @@ pub enum Error {
 impl From<io::Error> for Error {
     fn from(e: io::Error) -> Self {
         Error::Io(e)
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Error::Io(e) => write!(f, "{}", e),
+            Error::ExpectedTerm(line) => write!(f, "Expected term on line {}", line),
+            Error::ExpectedIdx(line) => write!(f, "Expected index on line {}", line),
+            Error::ExpectedName(line) => write!(f, "Expected object or group name on line {}", line),
+            Error::InvalidIndex(idx) => write!(f, "Invalid index '{}'", idx),
+        }
     }
 }
 

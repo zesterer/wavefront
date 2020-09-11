@@ -3,7 +3,8 @@
 [![crates.io](https://img.shields.io/crates/v/wavefront.svg)](https://crates.io/crates/wavefront)
 [![crates.io](https://docs.rs/wavefront/badge.svg)](https://docs.rs/wavefront)
 
-A [Wavefront OBJ](https://en.wikipedia.org/wiki/Wavefront_.obj_file) parser and utility crate.
+A [Wavefront OBJ](https://en.wikipedia.org/wiki/Wavefront_.obj_file) parser and
+utility crate.
 
 ```toml
 [dependencies]
@@ -14,6 +15,11 @@ wavefront = "x.y.z"
 
 ```rust
 let model = wavefront::Obj::from_file("tests/ship.obj").unwrap();
+
+for [a, b, c] in model.triangles() {
+    // No index lookup required: wavefront handles this for you!
+    println!("{:?} {:?} {:?}", a.position(), b.position(), c.position());
+}
 ```
 
 <img src="https://raw.githubusercontent.com/zesterer/wavefront/master/misc/screenshot.png" alt="A parsec isn't a unit of time, Han" width="50%"/>
@@ -22,8 +28,8 @@ let model = wavefront::Obj::from_file("tests/ship.obj").unwrap();
 
 - Ergonomic API for parsing OBJs from files and readers.
 
-- Wrapper types that automatically perform indexing and hide the annoyances of the OBJ format if you just want to
-  grab some triangles.
+- Wrapper types that automatically perform indexing and hide the annoyances of
+  the OBJ format if you just want to grab some triangles.
 
 - Correct handling of complex polygons.
 
@@ -32,6 +38,14 @@ let model = wavefront::Obj::from_file("tests/ship.obj").unwrap();
 - Support for materials and the MTL format.
 
 - Support for arbitrary geometry.
+
+## Why not [alternative]?
+
+`wavefront` was born of a general feeling that the API of existing OBJ parsers
+were either unnecessarily verbose or didn't properly handle the heirarchical
+structure of the OBJ format. `wavefront` aims to couple correct handling of the
+format's features with a clean, terse API that allows you to jump straight to
+the thing you want to do: rendering your model.
 
 ## License
 
