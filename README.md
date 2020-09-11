@@ -20,7 +20,7 @@ let model = wavefront::Obj::from_file("tests/ship.obj").unwrap();
 
 # Features
 
-- Ergonomic API for parsing OBJs from files and [`std::io::Read`]ers.
+- Ergonomic API for parsing OBJs from files and readers.
 
 - Wrapper types that automatically perform indexing and hide the annoyances of the OBJ format if you just want to
   grab some triangles.
