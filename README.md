@@ -31,9 +31,14 @@ for [a, b, c] in model.triangles() {
 - Ergonomic API for parsing OBJs from files and readers.
 
 - Wrapper types that automatically perform indexing and hide the annoyances of
-  the OBJ format if you just want to grab some triangles.
+  the OBJ format if you just want to grab some triangles...
+
+- ...but allows you to dip into the nitty-gritty details of OBJ if you want to
+  do that too.
 
 - Correct handling of complex polygons.
+
+- No dependencies
 
 ## Roadmap
 

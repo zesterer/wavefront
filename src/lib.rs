@@ -24,6 +24,7 @@ use std::{
     fs::File,
     collections::HashMap,
     num::NonZeroUsize,
+    ops::{Deref, DerefMut},
     error,
     fmt,
 };
@@ -237,7 +238,6 @@ impl Obj {
                 normals,
                 vertices,
             },
-
             objects,
         })
     }
@@ -252,21 +252,6 @@ impl Obj {
         Ok(self.write(File::create(path)?)?)
     }
 
-    /// Returns a reference to the position attributes contained within this [`Obj`].
-    pub fn positions(&self) -> &[[f32; 3]] {
-        &self.buffers.positions
-    }
-
-    /// Returns a reference to the texture coordinate attributes contained within this [`Obj`].
-    pub fn uvs(&self) -> &[[f32; 3]] {
-        &self.buffers.uvs
-    }
-
-    /// Returns a reference to the normal attributes contained within this [`Obj`].
-    pub fn normals(&self) -> &[[f32; 3]] {
-        &self.buffers.normals
-    }
-
     /// Returns a specific [`Object`] by name.
     ///
     /// Note that if a name is not specified in the OBJ file, the name defaults to an empty string.
@@ -278,8 +263,8 @@ impl Obj {
     }
 
     /// Returns an iterator over the [`Object`]s in this [`Obj`].
-    pub fn objects(&self) -> impl ExactSizeIterator<Item=(&String, Object)> + Clone + '_ {
-        self.objects.iter().map(move |(name, groups)| (name, Object {
+    pub fn objects(&self) -> impl ExactSizeIterator<Item=(&str, Object)> + Clone + '_ {
+        self.objects.iter().map(move |(name, groups)| (name.as_str(), Object {
             buffers: &self.buffers,
             groups,
         }))
@@ -310,6 +295,28 @@ impl Obj {
             .map(|poly| poly.triangles())
             .flatten()
     }
+
+    /// Returns an iterator over the vertices in this [`Obj`].
+    pub fn vertices(&self) -> impl ExactSizeIterator<Item=Vertex> + Clone + '_ {
+        self
+            .buffers
+            .vertices
+            .iter()
+            .map(move |indices| Vertex {
+                buffers: &self.buffers,
+                indices: *indices,
+            })
+    }
+}
+
+impl Deref for Obj {
+    type Target = Buffers;
+
+    fn deref(&self) -> &Buffers { &self.buffers }
+}
+
+impl DerefMut for Obj {
+    fn deref_mut(&mut self) -> &mut Buffers { &mut self.buffers }
 }
 
 impl fmt::Debug for Obj {
@@ -367,7 +374,7 @@ impl<'a> Object<'a> {
     pub fn group(&self, name: &str) -> Option<Group<'a>> {
         self.groups.get(name).map(|polygons| Group {
             buffers: self.buffers,
-            polygons,
+            polygons: polygons.as_slice(),
         })
     }
 
@@ -375,8 +382,8 @@ impl<'a> Object<'a> {
     pub fn groups(&self) -> impl ExactSizeIterator<Item=(&'a String, Group<'a>)> + Clone + 'a {
         let buffers = self.buffers;
         self.groups.iter().map(move |(name, polygons)| (name, Group {
-            buffers,
-            polygons,
+            buffers: buffers,
+            polygons: polygons.as_slice(),
         }))
     }
 
@@ -519,7 +526,7 @@ pub struct Vertex<'a> {
 }
 
 impl<'a> Vertex<'a> {
-    /// Returns the index of the vertex's position in the slice given by [`Obj::positions`].
+    /// Returns the index of the vertex's position in the slice given by [`Buffers::positions`].
     ///
     /// Note that, unlike OBJ files themselves, this is zero-indexed.
     pub fn position_index(&self) -> Index {
@@ -531,7 +538,7 @@ impl<'a> Vertex<'a> {
         self.buffers.positions[self.position_index()]
     }
 
-    /// Returns the index of the vertex's texture coordinate, if it has one, in the slice given by [`Obj::uvs`].
+    /// Returns the index of the vertex's texture coordinate, if it has one, in the slice given by [`Buffers::uvs`].
     ///
     /// Note that, unlike OBJ files themselves, this is zero-indexed.
     pub fn uv_index(&self) -> Option<Index> {
@@ -543,7 +550,7 @@ impl<'a> Vertex<'a> {
         Some(self.buffers.uvs[self.uv_index()?])
     }
 
-    /// Returns the index of the vertex's normal, if it has one, in the slice given by [`Obj::normals`].
+    /// Returns the index of the vertex's normal, if it has one, in the slice given by [`Buffers::normals`].
     ///
     /// Note that, unlike OBJ files themselves, this is zero-indexed.
     pub fn normal_index(&self) -> Option<Index> {
@@ -585,7 +592,7 @@ pub mod util {
 type VertexIndices = (NonZeroUsize, Option<NonZeroUsize>, Option<NonZeroUsize>);
 
 #[derive(Clone, Default)]
-struct Buffers {
+pub struct Buffers {
     positions: Vec<[f32; 3]>,
     uvs: Vec<[f32; 3]>,
     normals: Vec<[f32; 3]>,
@@ -599,10 +606,46 @@ impl Buffers {
             vertices: &self.vertices[range.start..range.end],
         }
     }
+
+    /// Returns a reference to the position attributes contained within this [`Obj`].
+    pub fn positions(&self) -> &[[f32; 3]] {
+        &self.positions
+    }
+
+    /// Returns a reference to the texture coordinate attributes contained within this [`Obj`].
+    pub fn uvs(&self) -> &[[f32; 3]] {
+        &self.uvs
+    }
+
+    /// Returns a reference to the normal attributes contained within this [`Obj`].
+    pub fn normals(&self) -> &[[f32; 3]] {
+        &self.normals
+    }
+
+    /// Add a new position attribute to this [`Obj`], returning its index.
+    pub fn add_position(&mut self, position: [f32; 3]) -> usize {
+        let idx = self.positions.len();
+        self.positions.push(position);
+        idx
+    }
+
+    /// Add a new texture coordinate attribute to this [`Obj`], returning its index.
+    pub fn add_uv(&mut self, uv: [f32; 3]) -> usize {
+        let idx = self.uvs.len();
+        self.uvs.push(uv);
+        idx
+    }
+
+    /// Add a new normal attribute to this [`Obj`], returning its index.
+    pub fn add_normal(&mut self, normal: [f32; 3]) -> usize {
+        let idx = self.normals.len();
+        self.normals.push(normal);
+        idx
+    }
 }
 
-#[derive(Copy, Clone, Debug)]
-struct VertexRange {
+#[derive(Copy, Clone)]
+pub struct VertexRange {
     start: usize,
     end: usize,
 }
