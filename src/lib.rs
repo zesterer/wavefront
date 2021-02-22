@@ -18,23 +18,36 @@
 
 #![feature(iter_map_while)]
 
+#![cfg_attr(all(not(feature = "std"), not(test)), no_std)]
+
+extern crate alloc;
+
+use core::{
+    num::NonZeroUsize,
+    ops::{Deref, DerefMut},
+    fmt,
+};
+use alloc::{
+    vec::Vec,
+    string::{String, ToString},
+};
+#[cfg(feature = "std")]
 use std::{
     io::{self, Read, Write},
     path::Path,
     fs::File,
-    collections::HashMap,
-    num::NonZeroUsize,
-    ops::{Deref, DerefMut},
     error,
-    fmt,
 };
+use hashbrown::HashMap;
 
 /// A number used to index into vertex attribute arrays.
 pub type Index = usize;
 
 /// An error that may be encountered while attempting to parse an OBJ.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Error {
+    #[cfg(feature = "std")]
     Io(io::Error),
     /// Expected a term on the given line but no term was found instead.
     ExpectedTerm(usize),
@@ -46,6 +59,7 @@ pub enum Error {
     InvalidIndex(isize),
 }
 
+#[cfg(feature = "std")]
 impl From<io::Error> for Error {
     fn from(e: io::Error) -> Self {
         Error::Io(e)
@@ -55,6 +69,7 @@ impl From<io::Error> for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            #[cfg(feature = "std")]
             Error::Io(e) => write!(f, "{}", e),
             Error::ExpectedTerm(line) => write!(f, "Expected term on line {}", line),
             Error::ExpectedIdx(line) => write!(f, "Expected index on line {}", line),
@@ -64,6 +79,7 @@ impl fmt::Display for Error {
     }
 }
 
+#[cfg(feature = "std")]
 impl error::Error for Error {}
 
 /// A struct representing the contents of a parsed OBJ file.
@@ -75,11 +91,13 @@ pub struct Obj {
 
 impl Obj {
     /// Read an OBJ from a file.
+    #[cfg(feature = "std")]
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         Self::from_reader(io::BufReader::new(File::open(path)?))
     }
 
     /// Read an OBJ from a reader (something implementing [`std::io::Read`]).
+    #[cfg(feature = "std")]
     pub fn from_reader<R: Read>(mut reader: R) -> Result<Self, Error> {
         let mut buf = String::new();
         reader.read_to_string(&mut buf)?;
@@ -189,13 +207,13 @@ impl Obj {
                 },
                 Some("o") => {
                     // Clean up old object
-                    object.1 = std::mem::take(&mut groups);
+                    object.1 = core::mem::take(&mut groups);
                     if default_group.len() > 0 {
-                        object.1.insert(String::new(), std::mem::take(&mut default_group));
+                        object.1.insert(String::new(), core::mem::take(&mut default_group));
                     }
                     selected_groups.clear();
                     if object.1.len() > 0 {
-                        objects.insert(object.0.unwrap_or_default(), std::mem::take(&mut object.1));
+                        objects.insert(object.0.unwrap_or_default(), core::mem::take(&mut object.1));
                     }
 
                     // Create new object
@@ -211,13 +229,13 @@ impl Obj {
         }
 
         // Clean up old object
-        object.1 = std::mem::take(&mut groups);
+        object.1 = core::mem::take(&mut groups);
         if default_group.len() > 0 {
-            object.1.insert(String::new(), std::mem::take(&mut default_group));
+            object.1.insert(String::new(), core::mem::take(&mut default_group));
         }
         selected_groups.clear();
         if object.1.len() > 0 {
-            objects.insert(object.0.unwrap_or_default(), std::mem::take(&mut object.1));
+            objects.insert(object.0.unwrap_or_default(), core::mem::take(&mut object.1));
         }
 
         // Validate indices
@@ -243,11 +261,13 @@ impl Obj {
     }
 
     /// Write this [`Obj`] to a writer (something implementing [`std::io::Write`]) in OBJ format.
+    #[cfg(feature = "std")]
     pub fn write<W: Write>(&self, mut writer: W) -> Result<(), Error> {
         Ok(write!(writer, "{}", self)?)
     }
 
     /// Write this [`Obj`] to a file in OBJ format.
+    #[cfg(feature = "std")]
     pub fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
         Ok(self.write(File::create(path)?)?)
     }
