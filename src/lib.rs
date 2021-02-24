@@ -512,11 +512,11 @@ impl<'a> Polygon<'a> {
     /// - The vertices of the polygon all lie in the same plane
     pub fn triangles(&self) -> impl ExactSizeIterator<Item=[Vertex<'a>; 3]> + Clone + 'a {
         let this = *self;
-        (0..this.vertices.len().saturating_sub(1) / 2)
+        (0..this.vertices.len().saturating_sub(2))
             .map(move |i| [
                 this.vertex(0).unwrap(),
-                this.vertex(i * 2 + 1).unwrap(),
-                this.vertex(i * 2 + 2).unwrap(),
+                this.vertex(i + 1).unwrap(),
+                this.vertex(i + 2).unwrap(),
             ])
     }
 
