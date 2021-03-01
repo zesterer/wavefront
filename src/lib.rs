@@ -242,7 +242,7 @@ impl Obj {
         for (pos, uv, norm) in &vertices {
             if pos.get() - 1 >= positions.len() { return Err(Error::InvalidIndex(pos.get() as isize)); }
             if let Some(uv) = *uv {
-                if uv.get() >= uvs.len() { return Err(Error::InvalidIndex(uv.get() as isize)); }
+                if uv.get() - 1 >= uvs.len() { return Err(Error::InvalidIndex(uv.get() as isize)); }
             }
             if let Some(norm) = *norm {
                 if norm.get() - 1 >= normals.len() { return Err(Error::InvalidIndex(norm.get() as isize)); }
