@@ -16,6 +16,7 @@
 //!
 //! <center><img src="https://raw.githubusercontent.com/zesterer/wavefront/master/misc/screenshot.png" alt="A parsec isn't a unit of time, Han" width="50%"/></center>
 
+#![deny(missing_docs)]
 #![feature(iter_map_while)]
 
 #![cfg_attr(all(not(feature = "std"), not(test)), no_std)]
@@ -47,6 +48,7 @@ pub type Index = usize;
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Error {
+    /// An error occurred when attempting to perform I/O.
     #[cfg(feature = "std")]
     Io(io::Error),
     /// Expected a term on the given line but no term was found instead.
@@ -55,7 +57,7 @@ pub enum Error {
     ExpectedIdx(usize),
     /// Expected a name but something else was found instead.
     ExpectedName(usize),
-    // An invalid index was encountered.
+    /// An invalid index was encountered.
     InvalidIndex(isize),
 }
 
@@ -611,6 +613,7 @@ pub mod util {
 
 type VertexIndices = (NonZeroUsize, Option<NonZeroUsize>, Option<NonZeroUsize>);
 
+/// A struct of buffers that may be indexed by [`Obj`] vertices.
 #[derive(Clone, Default)]
 pub struct Buffers {
     positions: Vec<[f32; 3]>,
@@ -665,7 +668,7 @@ impl Buffers {
 }
 
 #[derive(Copy, Clone)]
-pub struct VertexRange {
+struct VertexRange {
     start: usize,
     end: usize,
 }
