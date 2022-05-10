@@ -109,6 +109,7 @@ impl Obj {
     /// Read an OBJ from an iterator over its lines.
     pub fn from_lines<I: Iterator<Item=L>, L: AsRef<str>>(lines: I) -> Result<Self, Error> {
         let mut positions = Vec::new();
+        let mut colors = Vec::new();
         let mut uvs = Vec::new();
         let mut normals = Vec::new();
         let mut vertices = Vec::new();
@@ -132,6 +133,10 @@ impl Obj {
                         nums.next().unwrap_or(0.0),
                         nums.next().unwrap_or(0.0),
                     ]);
+                    let r = nums.next();
+                    let g = nums.next();
+                    let b = nums.next();
+                    colors.push(r.zip(g).zip(b).map(|((r, g), b)| [r, g, b]));
                 },
                 Some("vt") => {
                     let mut nums = terms.map(|t| t.parse()).take_while(Result::is_ok).map(Result::unwrap);
@@ -254,6 +259,7 @@ impl Obj {
         Ok(Self {
             buffers: Buffers {
                 positions,
+                colors,
                 uvs,
                 normals,
                 vertices,
@@ -560,6 +566,12 @@ impl<'a> Vertex<'a> {
         self.buffers.positions[self.position_index()]
     }
 
+    /// Returns the position of this vertex.
+    pub fn color(&self) -> Option<[f32; 3]> {
+        // Uses position index
+        self.buffers.colors[self.position_index()]
+    }
+
     /// Returns the index of the vertex's texture coordinate, if it has one, in the slice given by [`Buffers::uvs`].
     ///
     /// Note that, unlike OBJ files themselves, this is zero-indexed.
@@ -617,6 +629,7 @@ type VertexIndices = (NonZeroUsize, Option<NonZeroUsize>, Option<NonZeroUsize>);
 #[derive(Clone, Default)]
 pub struct Buffers {
     positions: Vec<[f32; 3]>,
+    colors: Vec<Option<[f32; 3]>>,
     uvs: Vec<[f32; 3]>,
     normals: Vec<[f32; 3]>,
     vertices: Vec<VertexIndices>,
@@ -635,6 +648,11 @@ impl Buffers {
         &self.positions
     }
 
+    /// Returns a reference to the color attributes contained within this [`Obj`].
+    pub fn colors(&self) -> &[Option<[f32; 3]>] {
+        &self.colors
+    }
+
     /// Returns a reference to the texture coordinate attributes contained within this [`Obj`].
     pub fn uvs(&self) -> &[[f32; 3]] {
         &self.uvs
@@ -649,6 +667,15 @@ impl Buffers {
     pub fn add_position(&mut self, position: [f32; 3]) -> usize {
         let idx = self.positions.len();
         self.positions.push(position);
+        self.colors.push(None);
+        idx
+    }
+
+    /// Add a new position and color attribute to this [`Obj`], returning its index.
+    pub fn add_position_and_color(&mut self, position: [f32; 3], color: [f32; 3]) -> usize {
+        let idx = self.positions.len();
+        self.positions.push(position);
+        self.colors.push(Some(color));
         idx
     }
 

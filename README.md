@@ -36,7 +36,9 @@ for [a, b, c] in model.triangles() {
 - ...but allows you to dip into the nitty-gritty details of OBJ if you want to
   do that too.
 
-- Correct handling of complex polygons.
+- Correct handling of N-polygons.
+
+- Handling of vertex colors.
 
 - No dependencies
 
