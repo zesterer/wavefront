@@ -17,7 +17,6 @@
 //! <center><img src="https://raw.githubusercontent.com/zesterer/wavefront/master/misc/screenshot.png" alt="A parsec isn't a unit of time, Han" width="50%"/></center>
 
 #![deny(missing_docs)]
-#![feature(iter_map_while)]
 
 #![cfg_attr(all(not(feature = "std"), not(test)), no_std)]
 
@@ -32,6 +31,7 @@ use alloc::{
     vec::Vec,
     string::{String, ToString},
 };
+
 #[cfg(feature = "std")]
 use std::{
     io::{self, Read, Write},
@@ -126,7 +126,7 @@ impl Obj {
             let mut terms = line.split_ascii_whitespace();
             match terms.next() {
                 Some("v") => {
-                    let mut nums = terms.map_while(|t| t.parse().ok());
+                    let mut nums = terms.map(|t| t.parse()).take_while(Result::is_ok).map(Result::unwrap);
                     positions.push([
                         nums.next().unwrap_or(0.0),
                         nums.next().unwrap_or(0.0),
@@ -134,7 +134,7 @@ impl Obj {
                     ]);
                 },
                 Some("vt") => {
-                    let mut nums = terms.map_while(|t| t.parse().ok());
+                    let mut nums = terms.map(|t| t.parse()).take_while(Result::is_ok).map(Result::unwrap);
                     uvs.push([
                         nums.next().unwrap_or(0.0),
                         nums.next().unwrap_or(0.0),
@@ -142,7 +142,7 @@ impl Obj {
                     ]);
                 },
                 Some("vn") => {
-                    let mut nums = terms.map_while(|t| t.parse().ok());
+                    let mut nums = terms.map(|t| t.parse()).take_while(Result::is_ok).map(Result::unwrap);
                     normals.push([
                         nums.next().unwrap_or(0.0),
                         nums.next().unwrap_or(0.0),
@@ -200,7 +200,7 @@ impl Obj {
                 },
                 Some("g") => {
                     selected_groups = terms
-                        .map_while(|t| Some(t).filter(|t| util::name_is_valid(t)))
+                        .filter(|t| util::name_is_valid(t))
                         .map(|g| {
                             groups.entry(g.to_string()).or_default();
                             g.to_string()
@@ -220,8 +220,8 @@ impl Obj {
 
                     // Create new object
                     let name = terms
-                        .map_while(|t| Some(t).filter(|t| util::name_is_valid(t)))
                         .next()
+                        .filter(|t| util::name_is_valid(t))
                         .ok_or_else(|| Error::ExpectedName(line_num))?
                         .to_string();
                     object.0 = Some(name);
