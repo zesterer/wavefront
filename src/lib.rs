@@ -16,22 +16,40 @@
 //!
 //! <center><img src="https://raw.githubusercontent.com/zesterer/wavefront/master/misc/screenshot.png" alt="A parsec isn't a unit of time, Han" width="50%"/></center>
 
+#![deny(missing_docs)]
+
+#![cfg_attr(all(not(feature = "std"), not(test)), no_std)]
+
+extern crate alloc;
+
+use core::{
+    num::NonZeroUsize,
+    ops::{Deref, DerefMut},
+    fmt,
+};
+use alloc::{
+    vec::Vec,
+    string::{String, ToString},
+};
+
+#[cfg(feature = "std")]
 use std::{
     io::{self, Read, Write},
     path::Path,
     fs::File,
-    collections::HashMap,
-    num::NonZeroUsize,
     error,
-    fmt,
 };
+use hashbrown::HashMap;
 
 /// A number used to index into vertex attribute arrays.
 pub type Index = usize;
 
 /// An error that may be encountered while attempting to parse an OBJ.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Error {
+    /// An error occurred when attempting to perform I/O.
+    #[cfg(feature = "std")]
     Io(io::Error),
     /// Expected a term on the given line but no term was found instead.
     ExpectedTerm(usize),
@@ -39,10 +57,11 @@ pub enum Error {
     ExpectedIdx(usize),
     /// Expected a name but something else was found instead.
     ExpectedName(usize),
-    // An invalid index was encountered.
+    /// An invalid index was encountered.
     InvalidIndex(isize),
 }
 
+#[cfg(feature = "std")]
 impl From<io::Error> for Error {
     fn from(e: io::Error) -> Self {
         Error::Io(e)
@@ -52,6 +71,7 @@ impl From<io::Error> for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            #[cfg(feature = "std")]
             Error::Io(e) => write!(f, "{}", e),
             Error::ExpectedTerm(line) => write!(f, "Expected term on line {}", line),
             Error::ExpectedIdx(line) => write!(f, "Expected index on line {}", line),
@@ -61,6 +81,7 @@ impl fmt::Display for Error {
     }
 }
 
+#[cfg(feature = "std")]
 impl error::Error for Error {}
 
 /// A struct representing the contents of a parsed OBJ file.
@@ -72,11 +93,13 @@ pub struct Obj {
 
 impl Obj {
     /// Read an OBJ from a file.
+    #[cfg(feature = "std")]
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         Self::from_reader(io::BufReader::new(File::open(path)?))
     }
 
     /// Read an OBJ from a reader (something implementing [`std::io::Read`]).
+    #[cfg(feature = "std")]
     pub fn from_reader<R: Read>(mut reader: R) -> Result<Self, Error> {
         let mut buf = String::new();
         reader.read_to_string(&mut buf)?;
@@ -186,13 +209,13 @@ impl Obj {
                 },
                 Some("o") => {
                     // Clean up old object
-                    object.1 = std::mem::take(&mut groups);
+                    object.1 = core::mem::take(&mut groups);
                     if default_group.len() > 0 {
-                        object.1.insert(String::new(), std::mem::take(&mut default_group));
+                        object.1.insert(String::new(), core::mem::take(&mut default_group));
                     }
                     selected_groups.clear();
                     if object.1.len() > 0 {
-                        objects.insert(object.0.unwrap_or_default(), std::mem::take(&mut object.1));
+                        objects.insert(object.0.unwrap_or_default(), core::mem::take(&mut object.1));
                     }
 
                     // Create new object
@@ -208,20 +231,20 @@ impl Obj {
         }
 
         // Clean up old object
-        object.1 = std::mem::take(&mut groups);
+        object.1 = core::mem::take(&mut groups);
         if default_group.len() > 0 {
-            object.1.insert(String::new(), std::mem::take(&mut default_group));
+            object.1.insert(String::new(), core::mem::take(&mut default_group));
         }
         selected_groups.clear();
         if object.1.len() > 0 {
-            objects.insert(object.0.unwrap_or_default(), std::mem::take(&mut object.1));
+            objects.insert(object.0.unwrap_or_default(), core::mem::take(&mut object.1));
         }
 
         // Validate indices
         for (pos, uv, norm) in &vertices {
             if pos.get() - 1 >= positions.len() { return Err(Error::InvalidIndex(pos.get() as isize)); }
             if let Some(uv) = *uv {
-                if uv.get() >= uvs.len() { return Err(Error::InvalidIndex(uv.get() as isize)); }
+                if uv.get() - 1 >= uvs.len() { return Err(Error::InvalidIndex(uv.get() as isize)); }
             }
             if let Some(norm) = *norm {
                 if norm.get() - 1 >= normals.len() { return Err(Error::InvalidIndex(norm.get() as isize)); }
@@ -235,34 +258,20 @@ impl Obj {
                 normals,
                 vertices,
             },
-
             objects,
         })
     }
 
     /// Write this [`Obj`] to a writer (something implementing [`std::io::Write`]) in OBJ format.
+    #[cfg(feature = "std")]
     pub fn write<W: Write>(&self, mut writer: W) -> Result<(), Error> {
         Ok(write!(writer, "{}", self)?)
     }
 
     /// Write this [`Obj`] to a file in OBJ format.
+    #[cfg(feature = "std")]
     pub fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
         Ok(self.write(File::create(path)?)?)
-    }
-
-    /// Returns a reference to the position attributes contained within this [`Obj`].
-    pub fn positions(&self) -> &[[f32; 3]] {
-        &self.buffers.positions
-    }
-
-    /// Returns a reference to the texture coordinate attributes contained within this [`Obj`].
-    pub fn uvs(&self) -> &[[f32; 3]] {
-        &self.buffers.uvs
-    }
-
-    /// Returns a reference to the normal attributes contained within this [`Obj`].
-    pub fn normals(&self) -> &[[f32; 3]] {
-        &self.buffers.normals
     }
 
     /// Returns a specific [`Object`] by name.
@@ -276,8 +285,8 @@ impl Obj {
     }
 
     /// Returns an iterator over the [`Object`]s in this [`Obj`].
-    pub fn objects(&self) -> impl ExactSizeIterator<Item=(&String, Object)> + Clone + '_ {
-        self.objects.iter().map(move |(name, groups)| (name, Object {
+    pub fn objects(&self) -> impl ExactSizeIterator<Item=(&str, Object)> + Clone + '_ {
+        self.objects.iter().map(move |(name, groups)| (name.as_str(), Object {
             buffers: &self.buffers,
             groups,
         }))
@@ -308,6 +317,28 @@ impl Obj {
             .map(|poly| poly.triangles())
             .flatten()
     }
+
+    /// Returns an iterator over the vertices in this [`Obj`].
+    pub fn vertices(&self) -> impl ExactSizeIterator<Item=Vertex> + Clone + '_ {
+        self
+            .buffers
+            .vertices
+            .iter()
+            .map(move |indices| Vertex {
+                buffers: &self.buffers,
+                indices: *indices,
+            })
+    }
+}
+
+impl Deref for Obj {
+    type Target = Buffers;
+
+    fn deref(&self) -> &Buffers { &self.buffers }
+}
+
+impl DerefMut for Obj {
+    fn deref_mut(&mut self) -> &mut Buffers { &mut self.buffers }
 }
 
 impl fmt::Debug for Obj {
@@ -365,7 +396,7 @@ impl<'a> Object<'a> {
     pub fn group(&self, name: &str) -> Option<Group<'a>> {
         self.groups.get(name).map(|polygons| Group {
             buffers: self.buffers,
-            polygons,
+            polygons: polygons.as_slice(),
         })
     }
 
@@ -373,8 +404,8 @@ impl<'a> Object<'a> {
     pub fn groups(&self) -> impl ExactSizeIterator<Item=(&'a String, Group<'a>)> + Clone + 'a {
         let buffers = self.buffers;
         self.groups.iter().map(move |(name, polygons)| (name, Group {
-            buffers,
-            polygons,
+            buffers: buffers,
+            polygons: polygons.as_slice(),
         }))
     }
 
@@ -483,11 +514,11 @@ impl<'a> Polygon<'a> {
     /// - The vertices of the polygon all lie in the same plane
     pub fn triangles(&self) -> impl ExactSizeIterator<Item=[Vertex<'a>; 3]> + Clone + 'a {
         let this = *self;
-        (0..this.vertices.len().saturating_sub(1) / 2)
+        (0..this.vertices.len().saturating_sub(2))
             .map(move |i| [
                 this.vertex(0).unwrap(),
-                this.vertex(i * 2 + 1).unwrap(),
-                this.vertex(i * 2 + 2).unwrap(),
+                this.vertex(i + 1).unwrap(),
+                this.vertex(i + 2).unwrap(),
             ])
     }
 
@@ -517,7 +548,7 @@ pub struct Vertex<'a> {
 }
 
 impl<'a> Vertex<'a> {
-    /// Returns the index of the vertex's position in the slice given by [`Obj::positions`].
+    /// Returns the index of the vertex's position in the slice given by [`Buffers::positions`].
     ///
     /// Note that, unlike OBJ files themselves, this is zero-indexed.
     pub fn position_index(&self) -> Index {
@@ -529,7 +560,7 @@ impl<'a> Vertex<'a> {
         self.buffers.positions[self.position_index()]
     }
 
-    /// Returns the index of the vertex's texture coordinate, if it has one, in the slice given by [`Obj::uvs`].
+    /// Returns the index of the vertex's texture coordinate, if it has one, in the slice given by [`Buffers::uvs`].
     ///
     /// Note that, unlike OBJ files themselves, this is zero-indexed.
     pub fn uv_index(&self) -> Option<Index> {
@@ -541,7 +572,7 @@ impl<'a> Vertex<'a> {
         Some(self.buffers.uvs[self.uv_index()?])
     }
 
-    /// Returns the index of the vertex's normal, if it has one, in the slice given by [`Obj::normals`].
+    /// Returns the index of the vertex's normal, if it has one, in the slice given by [`Buffers::normals`].
     ///
     /// Note that, unlike OBJ files themselves, this is zero-indexed.
     pub fn normal_index(&self) -> Option<Index> {
@@ -582,8 +613,9 @@ pub mod util {
 
 type VertexIndices = (NonZeroUsize, Option<NonZeroUsize>, Option<NonZeroUsize>);
 
+/// A struct of buffers that may be indexed by [`Obj`] vertices.
 #[derive(Clone, Default)]
-struct Buffers {
+pub struct Buffers {
     positions: Vec<[f32; 3]>,
     uvs: Vec<[f32; 3]>,
     normals: Vec<[f32; 3]>,
@@ -597,9 +629,45 @@ impl Buffers {
             vertices: &self.vertices[range.start..range.end],
         }
     }
+
+    /// Returns a reference to the position attributes contained within this [`Obj`].
+    pub fn positions(&self) -> &[[f32; 3]] {
+        &self.positions
+    }
+
+    /// Returns a reference to the texture coordinate attributes contained within this [`Obj`].
+    pub fn uvs(&self) -> &[[f32; 3]] {
+        &self.uvs
+    }
+
+    /// Returns a reference to the normal attributes contained within this [`Obj`].
+    pub fn normals(&self) -> &[[f32; 3]] {
+        &self.normals
+    }
+
+    /// Add a new position attribute to this [`Obj`], returning its index.
+    pub fn add_position(&mut self, position: [f32; 3]) -> usize {
+        let idx = self.positions.len();
+        self.positions.push(position);
+        idx
+    }
+
+    /// Add a new texture coordinate attribute to this [`Obj`], returning its index.
+    pub fn add_uv(&mut self, uv: [f32; 3]) -> usize {
+        let idx = self.uvs.len();
+        self.uvs.push(uv);
+        idx
+    }
+
+    /// Add a new normal attribute to this [`Obj`], returning its index.
+    pub fn add_normal(&mut self, normal: [f32; 3]) -> usize {
+        let idx = self.normals.len();
+        self.normals.push(normal);
+        idx
+    }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 struct VertexRange {
     start: usize,
     end: usize,
